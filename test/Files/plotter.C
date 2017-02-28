@@ -521,13 +521,24 @@ int plotleds()
 			PL[i2].q->Draw();PL[i2].q->GetYaxis()->SetRangeUser(0.,HMAX);PL[i2].q->GetXaxis()->SetRangeUser(HMIN,HMAXX);
 			PL[i2].q->Write();
 		}
-		
-		cc[0]->SaveAs("QDists.pdf(");
-		cc[1]->SaveAs("QDists.pdf");
-		cc[2]->SaveAs("QDists.pdf");
-		cc[3]->SaveAs("QDists.pdf");
-		cc[4]->SaveAs("QDists.pdf");
-		cc[5]->SaveAs("QDists.pdf)");
+		if(RunType==2)
+		{
+			cc[0]->SaveAs("QDists.pdf(");
+			cc[1]->SaveAs("QDists.pdf");
+			cc[2]->SaveAs("QDists.pdf");
+			cc[3]->SaveAs("QDists.pdf");
+			cc[4]->SaveAs("QDists.pdf");
+			cc[5]->SaveAs("QDists.pdf)");
+		}
+		else if(RunType==3)
+		{
+			cc[0]->SaveAs("LQDists.pdf(");
+			cc[1]->SaveAs("LQDists.pdf");
+			cc[2]->SaveAs("LQDists.pdf");
+			cc[3]->SaveAs("LQDists.pdf");
+			cc[4]->SaveAs("LQDists.pdf");
+			cc[5]->SaveAs("LQDists.pdf)");
+		}
 		for(int i1=0;i1<6;i1++){delete cc[i1];}
 	}
 	{
