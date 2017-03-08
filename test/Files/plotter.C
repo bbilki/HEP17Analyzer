@@ -62,7 +62,9 @@ struct pedlist
 	float pedsigma;
 	float pedmeanerr;
 	float pedsigmaerr;
+
 	TH1F* h;
+	TH1F* qtot; //total charge
 	TH1F* p;//pulse
 	TH1F* pn;//pulsenorm
 };
@@ -155,7 +157,7 @@ int plotpeds()
 			pl.pedmeanerr=0.;
 			pl.pedsigmaerr=0.;
 			sprintf(hname,"ADC Pulse %d %d %d",pl.ieta,pl.iphi,pl.depth);
-			pl.p=new TH1F(hname,hname,10,-0.5,9.5);
+			pl.p=new TH1F(hname,hname,10,-0.5,9.5); //pl.p is a pointer.
 			pl.p->SetLineWidth(2);pl.p->SetLineColor(4);pl.p->SetFillColor(4);
 			pl.p->GetXaxis()->SetTitle("TS");pl.p->GetXaxis()->CenterTitle();
 			pl.p->GetYaxis()->SetTitle("Mean ADC / TS");pl.p->GetYaxis()->CenterTitle();
@@ -166,6 +168,11 @@ int plotpeds()
 			pl.h->SetLineWidth(2);pl.h->SetLineColor(1);
 			pl.h->GetXaxis()->SetTitle("ADC");pl.h->GetXaxis()->CenterTitle();
 			pl.h->GetYaxis()->SetTitle("TS / ADC");pl.h->GetYaxis()->CenterTitle();
+			sprintf(hname,"Qtot %d %d %d",pl.ieta,pl.iphi,pl.depth);
+			pl.qtot=new TH1F(hname,hname,200,0,1000);
+			pl.qtot->SetLineWidth(2);pl.qtot->SetLineColor(1);
+			pl.qtot->GetXaxis()->SetTitle("Total Charge (fC)");pl.qtot->GetXaxis()->CenterTitle();
+			pl.qtot->GetYaxis()->SetTitle("Events / 5fC");pl.qtot->GetYaxis()->CenterTitle();
 			PL.push_back(pl);
 		}
 	}
@@ -184,22 +191,34 @@ int plotpeds()
 					plind=i2;break;
 				}
 			}
+			float Qtot=0; 
 			for(int i2=0;i2<10;i2++)
 			{
 				PL[plind].h->Fill(ed.pulse->at(i1)[i2]);
 				PL[plind].p->Fill(i2,ed.pulse->at(i1)[i2]);
 				PL[plind].pn->Fill(i2);
+				if(i2>0)
+				{
+					Qtot+=adc2fC_QIE11[ed.pulse->at(i1)[i2]];
+				}
 			}
+			PL[plind].qtot->Fill(Qtot);
 		}
 	}
 	double HMAX=0.;
 	double HMAXP=0.;
+	double QTXMIN=1000.;
+	double QTXMAX=0.;
+	double QTYMAX=0.;
 	int iside=0;int iquad=0;
 	TF1* tf=new TF1("gaus","gaus",0.,10.);
 	for(int i2=0;i2<PL.size();i2++)
 	{
 		PL[i2].p->Divide(PL[i2].pn);
 		if(PL[i2].p->GetBinContent(PL[i2].p->GetMaximumBin())>HMAXP){HMAXP=PL[i2].p->GetBinContent(PL[i2].p->GetMaximumBin());}
+		if(PL[i2].qtot->GetBinContent(PL[i2].qtot->GetMaximumBin())>QTYMAX){QTYMAX=PL[i2].qtot->GetBinContent(PL[i2].qtot->GetMaximumBin());}
+		if(PL[i2].qtot->GetBinCenter(PL[i2].qtot->FindFirstBinAbove(0))<QTXMIN){QTXMIN=PL[i2].qtot->GetBinCenter(PL[i2].qtot->FindFirstBinAbove(0));}
+		if(PL[i2].qtot->GetBinCenter(PL[i2].qtot->FindLastBinAbove(1))>QTXMAX){QTXMAX=PL[i2].qtot->GetBinCenter(PL[i2].qtot->FindLastBinAbove(1));}
 // 		if(PL[i2].h->GetMean()>0)
 // 		{
 			PL[i2].h->Fit(tf,"q","q",0.,10.);
@@ -298,6 +317,49 @@ int plotpeds()
 		cc[3]->SaveAs("PedDists.pdf");
 		cc[4]->SaveAs("PedDists.pdf");
 		cc[5]->SaveAs("PedDists.pdf)");
+		for(int i1=0;i1<6;i1++){delete cc[i1];}
+	}
+	{
+		TCanvas* cc[6];
+		cc[0]=new TCanvas("cc1","cc1",4900,4900);//iphi=63, ieta=16-22
+		gStyle->SetOptStat(0);
+		gStyle->SetTitleFontSize(0.1);
+		cc[0]->Divide(7,7,0,0);
+		cc[1]=new TCanvas("cc2","cc2",4900,4900);//iphi=63, ieta=23-29
+		cc[1]->Divide(7,7,0,0);
+		cc[2]=new TCanvas("cc3","cc3",4900,3500);//iphi=64, ieta=16-20
+		cc[2]->Divide(7,5,0,0);
+		cc[3]=new TCanvas("cc4","cc4",4900,4900);//iphi=65, ieta=16-22
+		cc[3]->Divide(7,7,0,0);
+		cc[4]=new TCanvas("cc5","cc5",4900,4900);//iphi=65, ieta=23-29
+		cc[4]->Divide(7,7,0,0);
+		cc[5]=new TCanvas("cc6","cc6",4900,3500);//iphi=66, ieta=16-20
+		cc[5]->Divide(7,5,0,0);
+		int cci=0;
+		gPad->SetLogy();		
+
+		for(int i2=0;i2<PL.size();i2++)
+		{
+			int ccind=-1; 
+			if(PL[i2].iphi==63 && PL[i2].ieta>=16 && PL[i2].ieta<=22){ccind=0;cci=(PL[i2].ieta-16)*7+PL[i2].depth;}
+			else if(PL[i2].iphi==63 && PL[i2].ieta>=23 && PL[i2].ieta<=29) {ccind=1;cci=(PL[i2].ieta-23)*7+PL[i2].depth;}
+			else if(PL[i2].iphi==64) {ccind=2;cci=(PL[i2].ieta-16)*7+PL[i2].depth;}
+			else if(PL[i2].iphi==65 && PL[i2].ieta>=16 && PL[i2].ieta<=22) {ccind=3;cci=(PL[i2].ieta-16)*7+PL[i2].depth;}
+			else if(PL[i2].iphi==65 && PL[i2].ieta>=23 && PL[i2].ieta<=29) {ccind=4;cci=(PL[i2].ieta-23)*7+PL[i2].depth;}
+			else if(PL[i2].iphi==66) {ccind=5;cci=(PL[i2].ieta-16)*7+PL[i2].depth;}
+			cc[ccind]->cd(cci);
+			gPad->SetLogy();
+			PL[i2].qtot->Draw();PL[i2].qtot->GetYaxis()->SetRangeUser(.1,QTYMAX);
+			PL[i2].qtot->GetXaxis()->SetRangeUser(QTXMIN,QTXMAX);
+			PL[i2].qtot->Write();
+		}
+		
+		cc[0]->SaveAs("Qtot.pdf(");
+		cc[1]->SaveAs("Qtot.pdf");
+		cc[2]->SaveAs("Qtot.pdf");
+		cc[3]->SaveAs("Qtot.pdf");
+		cc[4]->SaveAs("Qtot.pdf");
+		cc[5]->SaveAs("Qtot.pdf)");
 		for(int i1=0;i1<6;i1++){delete cc[i1];}
 	}
 	outPeds->Close();
